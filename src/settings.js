@@ -3,9 +3,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const apiTypeSelect = document.getElementById('api-type');
     const anthropicFields = document.getElementById('anthropic-fields');
     const awsFields = document.getElementById('aws-fields');
+    const anthropicModelSelect = document.getElementById('anthropic-model');
+    const awsModelSelect = document.getElementById('aws-model');
 
     // Load saved settings
-    chrome.storage.sync.get(['apiType', 'anthropicApiKey', 'awsAccessKeyId', 'awsSecretAccessKey'], function(result) {
+    chrome.storage.sync.get(['apiType', 'anthropicApiKey', 'awsAccessKeyId', 'awsSecretAccessKey', 'anthropicModel', 'awsModel'], function(result) {
         if (result.apiType) {
             apiTypeSelect.value = result.apiType;
             toggleApiFields(result.apiType);
@@ -18,6 +20,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (result.awsSecretAccessKey) {
             document.getElementById('aws-secret-access-key').value = result.awsSecretAccessKey;
+        }
+        if (result.anthropicModel) {
+            anthropicModelSelect.value = result.anthropicModel;
+        }
+        if (result.awsModel) {
+            awsModelSelect.value = result.awsModel;
         }
     });
 
@@ -32,9 +40,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (apiType === 'anthropic') {
             settings.anthropicApiKey = document.getElementById('anthropic-api-key').value;
+            settings.anthropicModel = anthropicModelSelect.value;
         } else if (apiType === 'aws-bedrock') {
             settings.awsAccessKeyId = document.getElementById('aws-access-key-id').value;
             settings.awsSecretAccessKey = document.getElementById('aws-secret-access-key').value;
+            settings.awsModel = awsModelSelect.value;
         }
 
         chrome.storage.sync.set(settings, function() {

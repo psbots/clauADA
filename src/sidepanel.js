@@ -1,3 +1,5 @@
+import { SYSTEM_PROMPT, processCodeBlocks, generateUniqueId } from './utils.js';
+
 const chatInput = document.getElementById('chat-input');
 const sendButton = document.getElementById('send-button');
 const chatMessages = document.getElementById('chat-messages');
@@ -17,40 +19,16 @@ function hideTypingIndicator() {
     typingIndicator.classList.add('hidden');
 }
 
-// Add this function to check if the typing indicator is visible
 function isTypingIndicatorVisible() {
     return !typingIndicator.classList.contains('hidden');
-}
-
-function generateUniqueId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
 function addMessage(message, isUser = false) {
     const messageElement = document.createElement('div');
     messageElement.className = `p-4 ${isUser ? 'bg-blue-100 text-right' : 'bg-gray-100'} rounded-lg mb-2`;
     
-    if (!isUser && message.includes('<python>') && message.includes('</python>')) {
-        const parts = message.split(/<python>|<\/python>/);
-        parts.forEach((part, index) => {
-            if (index % 2 === 0) {
-                // Regular text
-                const textNode = document.createTextNode(part);
-                messageElement.appendChild(textNode);
-            } else {
-                // Python code
-                const codeElement = document.createElement('pre');
-                codeElement.className = 'bg-gray-200 p-2 rounded';
-                codeElement.textContent = part.trim();
-                messageElement.appendChild(codeElement);
-
-                const executeButton = document.createElement('button');
-                executeButton.textContent = 'Execute';
-                executeButton.className = 'bg-blue-500 text-white px-2 py-1 rounded mt-2';
-                executeButton.onclick = () => executePythonCode(part.trim());
-                messageElement.appendChild(executeButton);
-            }
-        });
+    if (!isUser) {
+        processCodeBlocks(message, messageElement);
     } else {
         messageElement.textContent = message;
     }
@@ -59,24 +37,6 @@ function addMessage(message, isUser = false) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
     chatHistory.push({ role: isUser ? 'user' : 'assistant', content: message });
     saveCurrentChat();
-}
-
-function executePythonCode(code) {
-    const outputElement = document.getElementById('code-output');
-    const outputContent = document.getElementById('output-content');
-    outputElement.classList.remove('hidden');
-    outputContent.textContent = 'Executing...';
-
-    // Create a new PyScript runtime
-    // const pyodide = new loadPyodide();
-    // pyodide.then(() => {
-    //     try {
-    //         const output = pyodide.runPython(code);
-    //         outputContent.textContent = output;
-    //     } catch (error) {
-    //         outputContent.textContent = `Error: ${error.message}`;
-    //     }
-    // });
 }
 
 async function handleSendMessage() {
@@ -102,31 +62,44 @@ async function handleSendMessage() {
 async function sendMessageToAPI(message) {
     const settings = await chrome.storage.sync.get(['apiType', 'anthropicApiKey', 'awsAccessKeyId', 'awsSecretAccessKey']);
     
+    let response;
     if (settings.apiType === 'anthropic') {
-        const response = await sendToAnthropic(message, settings.anthropicApiKey);
-        addMessage(response);
+        response = await sendToAnthropic(message, settings.anthropicApiKey);
     } else if (settings.apiType === 'aws-bedrock') {
-        await sendToAWSBedrock(message, settings.awsAccessKeyId, settings.awsSecretAccessKey);
+        response = await sendToAWSBedrock(message, settings.awsAccessKeyId, settings.awsSecretAccessKey);
     } else {
         throw new Error('Invalid API type');
     }
+
+    addMessage(response);
+    return response;
 }
 
 async function sendToAnthropic(message, apiKey) {
+    const settings = await chrome.storage.sync.get(['anthropicModel']);
+    const model = settings.anthropicModel || 'claude-2';
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-API-Key': apiKey,
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-            model: 'claude-2',
+            model: model,
             messages: chatHistory,
+            system: SYSTEM_PROMPT,
+            max_tokens: 1024,
+            temperature: 0.9,
+            top_p: 0.95,
         }),
     });
 
     if (!response.ok) {
-        throw new Error('Anthropic API request failed');
+        const errorData = await response.json();
+        console.error('Anthropic API Error:', errorData);
+        throw new Error(`Anthropic API request failed: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
@@ -136,24 +109,27 @@ async function sendToAnthropic(message, apiKey) {
 async function sendToAWSBedrock(message, accessKeyId, secretAccessKey) {
     const { BedrockRuntimeClient, InvokeModelWithResponseStreamCommand } = require("@aws-sdk/client-bedrock-runtime");
 
+    const settings = await chrome.storage.sync.get(['awsModel']);
+    const modelId = settings.awsModel || "anthropic.claude-3-haiku-20240307-v1:0";
+
     const client = new BedrockRuntimeClient({
-        region: "us-east-1", // Replace with your preferred region
+        region: "us-east-1",
         credentials: {
             accessKeyId: accessKeyId,
             secretAccessKey: secretAccessKey,
         },
     });
-    console.log(chatHistory)
+
     const params = {
-        modelId: "anthropic.claude-3-haiku-20240307-v1:0", // Use the appropriate model ID
+        modelId: modelId,
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify({
             anthropic_version: "bedrock-2023-05-31",
             max_tokens: 1024,
-            system: "You are a special broswer based Data Analysis assistant that helps the user with their query. Write any code required in Python only, especially the PyScript version since the code will be executed in the browser. Matplotlib, numpy and pandas libraries are installed already. For displaying matplotlib plots, just add the name of the object for example plt at the end.  Write the python code between <python> and </python> blocks",
-            messages:chatHistory,
-            temperature: 0.7,
+            system: SYSTEM_PROMPT,
+            messages: chatHistory,
+            temperature: 0.9,
             top_p: 0.95,
         }),
     };
@@ -173,89 +149,11 @@ async function sendToAWSBedrock(message, accessKeyId, secretAccessKey) {
             }
         }
 
-        // Create a new message element for the full response
-        const messageElement = document.createElement('div');
-        messageElement.className = 'p-4 bg-gray-100 rounded-lg mb-2';
-        chatMessages.appendChild(messageElement);
-
-        // Process the full response to ensure all code blocks are properly formatted
-        const processedResponse = processCodeBlocks(fullResponse, messageElement);
-
-        // Add the assistant's processed response to chatHistory
-        chatHistory.push({ role: 'assistant', content: processedResponse });
-        saveCurrentChat(); // Save the chat after the streaming response is complete
-
-        // Scroll to the bottom of the chat
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-
-        return processedResponse;
+        return fullResponse;
     } catch (error) {
         console.error('Error calling AWS Bedrock:', error);
         throw new Error('AWS Bedrock API request failed');
     }
-}
-
-function processCodeBlocks(response, messageElement) {
-    const codeBlockRegex = /<python>([\s\S]*?)<\/python>/g;
-    let match;
-    let lastIndex = 0;
-    let processedResponse = '';
-
-    while ((match = codeBlockRegex.exec(response)) !== null) {
-        // Add text before the code block
-        const textBefore = response.slice(lastIndex, match.index);
-        processedResponse += textBefore;
-        if (textBefore.trim()) {
-            const textElement = document.createElement('div');
-            textElement.className = 'mb-2';
-            textElement.textContent = textBefore.trim();
-            messageElement.appendChild(textElement);
-        }
-
-        // Process the code block
-        const codeContent = match[1].trim();
-        processedResponse += `<python>${codeContent}</python>`;
-
-        const codeContainer = document.createElement('div');
-        codeContainer.className = 'mb-4';
-        codeContainer.id = 'py-repl-parent'
-
-        const codeElement = document.createElement('py-repl');
-        // codeElement.className = 'bg-gray-200 p-2 rounded';
-        codeElement.className = 'mb-4';
-        codeElement.textContent = codeContent;
-        codeContainer.appendChild(codeElement);
-
-        const pyterminalContainer = document.createElement('div');
-        pyterminalContainer.className = 'mb-4';
-        pyterminalContainer.id = "py-terminal-parent"
-
-        const pyterminalElement = document.createElement('py-terminal')
-        pyterminalElement.id = "py-terminal"
-        pyterminalContainer.appendChild(pyterminalElement);
-
-        // const executeButton = document.createElement('button');
-        // executeButton.textContent = 'Execute';
-        // executeButton.className = 'bg-blue-500 text-white px-2 py-1 rounded mt-2';
-        // executeButton.onclick = () => executePythonCode(codeContent);
-        // codeContainer.appendChild(executeButton);
-
-        messageElement.appendChild(codeContainer);
-        messageElement.appendChild(pyterminalContainer);
-
-        lastIndex = codeBlockRegex.lastIndex;
-    }
-
-    // Add any remaining text after the last code block
-    const textAfter = response.slice(lastIndex);
-    if (textAfter.trim()) {
-        processedResponse += textAfter;
-        const textElement = document.createElement('div');
-        textElement.textContent = textAfter.trim();
-        messageElement.appendChild(textElement);
-    }
-
-    return processedResponse;
 }
 
 function saveCurrentChat() {
@@ -275,7 +173,7 @@ function loadChat(chatId) {
         // Clear existing messages
         chatMessages.innerHTML = '';
         
-        // Re-render messages
+        // Re-render messages without saving
         chatHistory.forEach(message => {
             const messageElement = document.createElement('div');
             messageElement.className = `p-4 ${message.role === 'user' ? 'bg-blue-100 text-right' : 'bg-gray-100'} rounded-lg mb-2`;
@@ -285,7 +183,7 @@ function loadChat(chatId) {
             } else {
                 messageElement.textContent = message.content;
             }
-            
+
             chatMessages.appendChild(messageElement);
         });
         

@@ -26,6 +26,17 @@
                     </label>
                     <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-slate-700 dark:text-gray-300 dark:border-gray-600" id="anthropic-api-key" type="password" placeholder="Enter your Anthropic API key">
                 </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="anthropic-model">
+                        Anthropic Model
+                    </label>
+                    <select id="anthropic-model" name="anthropic-model" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-slate-700 dark:text-gray-300 dark:border-gray-600">
+                        <option value="claude-3-5-sonnet-20240620">Claude 3.5 Sonnet</option>
+                        <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
+                        <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
+                        <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                    </select>
+                </div>
             </div>
             <div id="aws-fields" class="hidden">
                 <div class="mb-4">
@@ -39,6 +50,17 @@
                         AWS Secret Access Key
                     </label>
                     <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-slate-700 dark:text-gray-300 dark:border-gray-600" id="aws-secret-access-key" type="password" placeholder="Enter your AWS Secret Access Key">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="aws-model">
+                        AWS Bedrock Model
+                    </label>
+                    <select id="aws-model" name="aws-model" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-slate-700 dark:text-gray-300 dark:border-gray-600">
+                        <option value="anthropic.claude-3-5-sonnet-20240620-v1:0">Claude 3.5 Sonnet</option>
+                        <option value="anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku</option>
+                        <option value="anthropic.claude-3-sonnet-20240229-v1:0">Claude 3 Sonnet</option>
+                        <option value="anthropic.claude-3-opus-20240229-v1:0">Claude 3 Opus</option>
+                    </select>
                 </div>
             </div>
             <div class="flex items-center justify-between">

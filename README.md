@@ -6,4 +6,5 @@ It generates code for the given query using Claude APIs and uses PyScript, Pyodi
 
 The generated code is shown in an editable interface, so you can make any changes if required before running the code.
 
-![screenshot2](screenshots/sc2.png)
+![sincos](screenshots/sincos.png)
+![scatter](screenshots/scatter.png)
