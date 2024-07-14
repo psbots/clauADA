@@ -13,7 +13,7 @@ To quickly test the extension :
 - Click load unpacked
 - Select the dist folder
 - Load the extension from the Extensions menu
-- Click the hamburger button - Settings and set up API keys for either Anthropic API or AWS Bedrock (note that the Bedrock ID should have [access to Claude models](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html))
+- Click the hamburger button - Settings and set up API keys for either Anthropic API or AWS Bedrock (note that the Bedrock ID should have [access to Claude models](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)). The keys are only stored locally in the browser and used only to make Claude API calls. They are not sent to any other server other than Anthropic or AWS Bedrock servers.
 - You are ready to chat and run python code on the browser
 - Please note that the extension is tested only on Chrome and might not work on other browsers.
 
